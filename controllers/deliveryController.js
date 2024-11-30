@@ -47,10 +47,10 @@ exports.create = async (req, res) => {
 
 
 exports.decline = async (req, res) => {    
-    const {deliveryOrderId} = req.body;
-    if (!deliveryOrderId) throw(400);        
+    const {orderId} = req.body;
+    if (!orderId) throw(400);        
     try {
-        const delivery = await deliveryHelper.decline(deliveryOrderId);        
+        const delivery = await deliveryHelper.decline(orderId);        
         if(!delivery) throw(422)
         sendResponse(res, 200, { status: true});
     } catch (error) {
