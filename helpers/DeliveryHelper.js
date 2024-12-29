@@ -231,18 +231,32 @@ startConsumer(DELIVERY_RESERVATION_QUEUE, async (msg) => {
    const month = String(today.getMonth() + 1).padStart(2, '0'); // Месяцы начинаются с 0
    const day = String(today.getDate()).padStart(2, '0');
    const formattedDate = `${year}-${month}-${day}`;
-   await  exports.create(msg.order.orderId, formattedDate, msg.order.deliveryId)       
+   let result = 
+      await  exports.create(msg.order.orderId, formattedDate, msg.order.deliveryId)       
+   if(!result) { // если курьер не назначен - ставим статус Поиск 
+    await searchCourierMessageSend(msg);
+   }
 });
 
 startConsumer(DELIVERY_DECLINE_QUEUE, async (msg) => {
   await exports.decline(msg.order.orderId),
-  await courierSearchStatusMessageSend(msg)
+  await courierSearchOrderStatusMessageSend(msg)
 });
 
-async function courierSearchStatusMessageSend(msg){ // поставить статус - поиск курьера (когда нет свободного)
+async function searchCourierMessageSend(msg){ // поставить статус - поиск курьера (когда нет свободного)
   try {
      let rabbitClient = new ClientProducerAMQP();
       await  rabbitClient.sendMessage(ORDER_STATUS_QUEUE, {status: true, processStatus : 'COURIER_SEARCH',  order: msg.order })  
+    } catch (error) {
+      console.log(`declineStatusMessageSend. Ошибка ${error}`);
+  } 
+  return;
+}
+
+async function searchCourierMessageSend(msg){ // ищем курьера
+  try {
+     let rabbitClient = new ClientProducerAMQP();
+      await  rabbitClient.sendMessage(ORDER_STATUS_QUEUE, msg)  
     } catch (error) {
       console.log(`declineStatusMessageSend. Ошибка ${error}`);
   } 
