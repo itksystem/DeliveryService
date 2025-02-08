@@ -5,40 +5,23 @@ const CommonFunctionHelper = require("openfsm-common-functions")
 const commonFunction= new CommonFunctionHelper();
 const authMiddleware = require('openfsm-middlewares-auth-service'); // middleware для проверки токена
 const { v4: uuidv4 } = require('uuid'); 
+const AuthServiceClientHandler = require("openfsm-auth-service-client-handler");
+const authClient = new AuthServiceClientHandler();              // интерфейс для  связи с MC AuthService
+const AddressDto = require('openfsm-address-dto');
 require('dotenv').config();
-
-
-const isValidUUID = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-
-const validateRequest = (productId, quantity, userId) => {
-    if (!productId || !isValidUUID(productId)) return "Invalid product ID";
-    if (!quantity || typeof quantity !== "number" || quantity <= 0) return "Invalid quantity";
-    if (!userId ) return "Invalid user ID";
-    return null;
-};
 
 const sendResponse = (res, statusCode, data) => {
     res.status(statusCode).json(data);
 };
 
 
-exports.create = async (req, res) => {    
-    const {orderId, deliveryDate, deliveryTypeId} = req.body;
-    if (!orderId || !deliveryDate || !deliveryTypeId ) throw(400);        
-    try {
-        const delivery = await deliveryHelper.create(orderId, deliveryDate, deliveryTypeId);        
-        if(!delivery) throw(422)
-        const deliveryOrder = await deliveryHelper.findDeliveryOrder(orderId);
-        if(!deliveryOrder.order_id) throw(422) 
-        sendResponse(res, 200, { 
-            status: true,
-            deliveryOrder:    {
-             deliveryOrderId: deliveryOrder.id,
-             deliveryDate: deliveryOrder.delivery_date,
-             orderId: deliveryOrder.order_id,
-             courierId: deliveryOrder.courier_id
-            }   
-            });
+exports.create = async (req, res) => {        
+    try {        
+        const {orderId, date, deliveryType} = req.body;
+        if (!orderId || !date || !deliveryType ) throw(400);        
+        const deliveryId = await deliveryHelper.create(orderId, date, deliveryType);        
+        if(!deliveryId) throw(422)
+        sendResponse(res, 200, { status: true, deliveryId });
     } catch (error) {
          console.error("Error create:", error);
          sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });
@@ -46,13 +29,57 @@ exports.create = async (req, res) => {
 };
 
 
-exports.decline = async (req, res) => {    
-    const {orderId} = req.body;
-    if (!orderId) throw(400);        
+exports.decline = async (req, res) => {      
     try {
-        const delivery = await deliveryHelper.decline(orderId);        
-        if(!delivery) throw(422)
-        sendResponse(res, 200, { status: true});
+        const {orderId} = req.body;
+        if (!orderId) throw(400);     
+        const deliveryId = await deliveryHelper.decline(orderId);        
+        if(!deliveryId) throw(422)
+        sendResponse(res, 200, { status: true, deliveryId});
+    } catch (error) {
+         console.error("Error create:", error);
+         sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });
+    }
+};
+
+exports.addAddress = async (req, res) => {      
+    try {
+        let userId = await authMiddleware.getUserId(req, res);
+        if(!userId) throw(422)
+        const address = new AddressDto(req.body);
+        if(!address) throw(422);
+        const addressId = await deliveryHelper.addAddress(address,userId);        
+        if(!addressId) throw(422)
+        sendResponse(res, 200, { status: true, addressId});
+    } catch (error) {
+         console.error("Error create:", error);
+         sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });
+    }
+};
+
+exports.deleteAddress = async (req, res) => {      
+    try {
+        let userId = await authMiddleware.getUserId(req, res);
+        if(!userId) throw(422)
+        const {addressId} = req.body;
+        if (!addressId) throw(400);     
+        const result = await deliveryHelper.deleteAddress(addressId, userId);        
+        if(!result) throw(422)
+        sendResponse(res, 200, { status: true, addressId});
+    } catch (error) {
+         console.error("Error create:", error);
+         sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });
+    }
+};
+
+
+exports.getAddresses = async (req, res) => {      
+    try {
+        let userId = await authMiddleware.getUserId(req, res);
+        if(!userId) throw(422)           
+        const adresses = await deliveryHelper.getAddresses(userId);        
+        if(!adresses) throw(422)
+        sendResponse(res, 200, { status: true, adresses});
     } catch (error) {
          console.error("Error create:", error);
          sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });

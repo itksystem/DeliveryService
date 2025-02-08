@@ -1,8 +1,9 @@
 const db = require('openfsm-database-connection-producer');
-const { UserPermissionsDTO, RoleDTO, PermissionDTO } = require('openfsm-permissions-dto');
-const { UserDTO } = require('openfsm-user-dto');
 const common      = require('openfsm-common');  /* Библиотека с общими параметрами */
-const {OrderDto}   = require('openfsm-order-dto');
+const SQL        = require('common-delivery-service').SQL;
+const MESSAGES   = require('common-delivery-service').MESSAGES;
+const logger     = require('openfsm-logger-handler');
+
 
 require('dotenv').config();
 const ClientProducerAMQP  =  require('openfsm-client-producer-amqp'); // ходим в почту через шину
@@ -10,9 +11,7 @@ const amqp = require('amqplib');
 
 /* Коннектор для шины RabbitMQ */
 const {
-  RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD,  
-  RABBITMQ_ORDER_STATUS_QUEUE, RABBITMQ_ORDER_DECLINE_QUEUE, 
-  RABBITMQ_DELIVERY_RESERVATION_QUEUE, RABBITMQ_DELIVERY_DECLINE_QUEUE  } = process.env;
+  RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD,  RABBITMQ_ORDER_STATUS_QUEUE,  RABBITMQ_DELIVERY_RESERVATION_QUEUE, RABBITMQ_DELIVERY_DECLINE_QUEUE  } = process.env;
 const login = RABBITMQ_USER || 'guest';
 const pwd = RABBITMQ_PASSWORD || 'guest';
 const ORDER_STATUS_QUEUE       = RABBITMQ_ORDER_STATUS_QUEUE || 'ORDER_STATUS';
@@ -30,7 +29,7 @@ const port = RABBITMQ_PORT || '5672';
 */
 exports.findCourierByTimeSlot = (deliveryTypeId, timeSlotId) => { // найти курьера  по типу и временному слоту
   return new Promise((resolve, reject) => {  
-        db.query( common.SQL.DELIVERY.FIND_COURIER_BY_TIME_SLOT,
+        db.query( SQL.DELIVERY.FIND_COURIER_BY_TIME_SLOT,
           [deliveryTypeId, timeSlotId],
           (err, results) => {
             if (err) {
@@ -49,7 +48,7 @@ exports.findCourierByTimeSlot = (deliveryTypeId, timeSlotId) => { // найти 
 exports.findCourierById = (courierId) => { // найти курьера  по ID
   return new Promise((resolve, reject) => {  
         db.query(
-          common.SQL.DELIVERY.FIND_COURIER_BY_ID, [courierId],
+          SQL.DELIVERY.FIND_COURIER_BY_ID, [courierId],
           (err, results) => {
             if (err) {
               console.log(err); 
@@ -67,7 +66,7 @@ exports.findCourierById = (courierId) => { // найти курьера  по ID
 */
 exports.getCourierOrderCount = (deliveryDate, courierId) => { // найти количество заказов у курьера на определенный день
   return new Promise((resolve, reject) => {  
-        db.query(common.SQL.DELIVERY.GET_COURIER_ORDER_COUNT, [deliveryDate, courierId],
+        db.query(SQL.DELIVERY.GET_COURIER_ORDER_COUNT, [deliveryDate, courierId],
           (err, results) => {
             if (err) {
               console.log(err); 
@@ -86,13 +85,13 @@ exports.getCourierOrderCount = (deliveryDate, courierId) => { // найти ко
 */
 exports.findCourier = (deliveryDate, deliveryTypeId) => { 
   return new Promise((resolve, reject) => {  
-        db.query(common.SQL.DELIVERY.FIND_COURIER, [deliveryDate, deliveryTypeId],
+        db.query(SQL.DELIVERY.FIND_COURIER, [deliveryDate, deliveryTypeId],
           (err, results) => {
             if (err) {
               console.log(err); 
               return reject(null);
             }
-            resolve(results[0]);
+            resolve(results.rows[0]);
         }
      );
   });
@@ -100,7 +99,7 @@ exports.findCourier = (deliveryDate, deliveryTypeId) => {
 
 exports.findDeliveryOrder = (orderId) => { // найти заказ на доставку c назначенным курьером
   return new Promise((resolve, reject) => {  
-        db.query(common.SQL.DELIVERY.FIND_DELIVERY_ORDER, [orderId],
+        db.query(SQL.DELIVERY.FIND_DELIVERY_ORDER, [orderId],
           (err, results) => {
             if (err) {
               console.log(err); 
@@ -117,27 +116,20 @@ exports.findDeliveryOrder = (orderId) => { // найти заказ на дос�
  @courierId - ID курьера
  @output {object}
 */
-exports.deliveryOrderAdd = (orderId, deliveryDate, courierId) => {
+exports.deliveryAdd = (orderId, deliveryDate, courierId) => {
   return new Promise((resolve, reject) => {
       // Валидация входных данных
       if (!orderId || !deliveryDate || !courierId) {
           return reject(new Error("Invalid input parameters"));
       }      
-      db.query(common.SQL.DELIVERY.DELIVERY_ORDER_ADD,
-          [orderId, deliveryDate, courierId, courierId],
+      db.query(SQL.DELIVERY.DELIVERY_ORDER_ADD,
+          [orderId, deliveryDate, courierId],
           (err, results) => {
               if (err) {
                   console.error("Database error:", err);
-                  return reject(false); // Передать ошибку дальше
+                  return reject(err); // Передать ошибку дальше
               }
-
-              // Проверка успешной вставки
-              if (results.affectedRows === 0) {
-                  console.error("Database error:", "Insertion failed, no rows affected.");
-                  return reject(false);
-              }
-
-              resolve(true); // Успешная вставка
+             resolve(results?.rows[0]?.id || null); // Успешная вставка
           }
       );
   });
@@ -145,35 +137,24 @@ exports.deliveryOrderAdd = (orderId, deliveryDate, courierId) => {
 
 
 // Создали заказ
-exports.create = (orderId, deliveryDate, deliveryTypeId) => {
+exports.create = (orderId, date, deliveryType) => {
   return new Promise(async (resolve, reject) => {
     let courier;
     try {
-      courier = await exports.findCourier(deliveryDate, deliveryTypeId);
-    } catch (err) {
-      console.error(`Ошибка при поиске курьера: ${err}`);
+      courier = await exports.findCourier(date, deliveryType);
+      if (!courier) {
+        console.error(`Курьер не найден: deliveryDate=${date}, deliveryType=${deliveryType}`);
+        return reject(false);
+      }
+      const [deliveryId] = await Promise.all([
+        // exports.findDeliveryOrder(orderId),
+        exports.deliveryAdd(orderId, date, courier.courier_id)
+      ]);
+        return resolve(deliveryId);
+      } catch (err) {
+      logger.error(`Ошибка: ${err.message}`);
       return reject(false); // Завершить выполнение на ошибке
     }
-
-    if (!courier) {
-      console.error(`Курьер не найден: deliveryDate=${deliveryDate}, deliveryTypeId=${deliveryTypeId}`);
-      return reject(false);
-    }
-
-    const [deliveryOrder, deliveryResult] = await Promise.all([
-      exports.findDeliveryOrder(orderId),
-      exports.deliveryOrderAdd(orderId, deliveryDate, courier.courier_id)
-    ]);
-  
-    if (deliveryOrder) {
-      console.log(`Заказ уже существует: orderId=${orderId}`);
-      return resolve(true); // Заказ уже существует
-    }
-    if (!deliveryResult) {
-      console.error(`Ошибка при добавлении заказа: orderId=${orderId}`);
-      return reject(false);
-    }
-    
   });
 };
 
@@ -182,13 +163,78 @@ exports.create = (orderId, deliveryDate, deliveryTypeId) => {
 // отменили  заказ
 exports.decline = (orderId) => {
   return new Promise((resolve, reject) => {  
-    db.query(common.SQL.DELIVERY.DECLINE, [orderId],
+    db.query(SQL.DELIVERY.DECLINE, [orderId],
       (err, results) => {
         if (err) {
           console.log(err); 
-          return reject(false);
+          return reject(err);
+        }
+        resolve(orderId);
+    }
+   );
+ });
+};
+
+
+// Добавить адрес
+exports.addAddress = (address, userId = null) => {
+  if(!userId) return reject('userId not exist');
+  return new Promise((resolve, reject) => {  
+    db.query(SQL.USER.ADD_ADDRESS, [
+      address.getFiasId() || null,
+      address.getFiasLevel() || null,
+      address.getValue() || null,
+      address.getCity() || null,
+      address.getCountry() || null,
+      address.getFlat() || null,
+      address.getHouse() || null,
+      address.getPostalCode() || null,
+      address.getRegion() || null,
+      address.getStreet() || null,
+      userId
+    ],
+      (err, result) => {
+        if (err) {
+          console.log(err); 
+          return reject(err);
+        }
+        resolve(result?.rows[0]?.address_id || null);
+    }
+   );
+ });
+};
+
+// Удалить адрес
+exports.deleteAddress = (addressId, userId = null) => {
+  if(!userId) return reject('userId not exist');
+  return new Promise((resolve, reject) => {  
+    db.query(SQL.USER.DELETE_ADDRESS, [      
+      userId, addressId
+    ],
+      (err, result) => {
+        if (err) {
+          console.log(err); 
+          return reject(err);
         }
         resolve(true);
+    }
+   );
+ });
+};
+
+
+exports.getAddresses = (userId = null) => {
+  if(!userId) return reject('userId not exist');
+  return new Promise((resolve, reject) => {  
+    db.query(SQL.USER.GET_ADDRESSES, [      
+      userId
+    ],
+      (err, result) => {
+        if (err) {
+          console.log(err); 
+          return reject(err);
+        }
+        resolve(result.rows);
     }
    );
  });
@@ -262,3 +308,4 @@ async function searchCourierMessageSend(msg){ // ищем курьера
   } 
   return;
 }
+
