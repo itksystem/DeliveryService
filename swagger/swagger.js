@@ -12,6 +12,9 @@ const options = {
       {
         url: 'http://localhost:3004'        
       },
+      {
+        url: 'http://pickmax.ru'        
+      }
     ],
     components: {
       securitySchemes: {
@@ -23,6 +26,7 @@ const options = {
       },
     },
   },
+  
   apis: ['./swagger/*.js','./routes/*.js'], // Укажите путь к вашим файлам с роутами
 };
 

@@ -77,9 +77,9 @@ exports.getAddresses = async (req, res) => {
     try {
         let userId = await authMiddleware.getUserId(req, res);
         if(!userId) throw(422)           
-        const adresses = await deliveryHelper.getAddresses(userId);        
-        if(!adresses) throw(422)
-        sendResponse(res, 200, { status: true, adresses});
+        const addresses = await deliveryHelper.getAddresses(userId);        
+        if(!addresses) throw(422)
+        sendResponse(res, 200, { status: true, addresses});
     } catch (error) {
          console.error("Error create:", error);
          sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });

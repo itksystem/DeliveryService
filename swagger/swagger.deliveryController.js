@@ -43,17 +43,17 @@
  *     AddressDto:
  *       type: object
  *       properties:
- *         address_id:
+ *         addressId:
  *           type: integer
  *           format: int64
  *           description: Уникальный идентификатор адреса.
  *           example: 1
- *         fias_id:
+ *         fiasId:
  *           type: string
  *           format: uuid
  *           description: Уникальный идентификатор адреса в системе ФИАС.
  *           example: "a0a0a0a0-a0a0-a0a0-a0a0-a0a0a0a0a0a0"
- *         fias_level:
+ *         fiasLevel:
  *           type: integer
  *           format: int32
  *           description: Уровень детализации адреса в системе ФИАС.
@@ -78,7 +78,7 @@
  *           type: string
  *           description: Номер дома.
  *           example: "10"
- *         postal_code:
+ *         postalCode:
  *           type: string
  *           description: Почтовый индекс (должен содержать 6 символов).
  *           example: "123456"
@@ -90,20 +90,21 @@
  *           type: string
  *           description: Название улицы.
  *           example: "Ленина"
- *         created_at:
+ *         createdAt:
  *           type: string
  *           format: date-time
  *           description: Время создания записи.
  *           example: "2023-10-01T12:00:00Z"
- *         deleted_at:
+ *         deletedAt:
  *           type: string
  *           format: date-time
  *           description: Время удаления записи (используется для soft delete).
  *           example: null
  *       required:
- *         - address_id
- *         - city
- *         - country 
+ *         - fiasId
+ *         - value 
+ *         - city 
+ *         - country
  */
 /**
  * @swagger
@@ -114,29 +115,6 @@
  *     security:
  *       - bearerAuth: []
  *     description: Создает тикет в службу доставки на доставку заказа
- *     responses:
- *       200:
- *         description: Успешный ответ
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/deliveryOrderDto' 
- */
-
-/**
- * @swagger
- * /api/delivery/v1/decline:
- *   post:
- *     summary: Отмена заказа на доставку товара клиенту
- *     tags: [deliveryController]
- *     security:
- *       - bearerAuth: []
- *     description: Отменяет тикет заказа доставки
- *     responses:
- *       200:
- *         description: Успешный ответ
  *     requestBody:
  *       required: true
  *       content:
@@ -148,6 +126,121 @@
  *                   type: integer
  *                   description: Номер заказа клиента
  *                   example: 123456
+ *                 date:
+ *                   type: string(date)
+ *                   description: Номер заказа клиента
+ *                   example: "2023-10-01"
+ *                 deliveryType:
+ *                   type: string
+ *                   description: Тип доставки
+ *                   example: COURIER_SERVICE
+ *     responses:
+ *       200:
+ *         description: Заказ успешно создан
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   description: Состояние выполнения запроса
+ *                   example: true
+ *                 deliveryId:
+ *                   type: integer
+ *                   description: Номер тикета доставки
+ *                   example: 123456
+ *    
+ *       '422':
+ *         description: Ошибка валидации.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                   example: 422
+ *                 message:
+ *                   type: string
+ *                   example: "Unprocessable Entity"
+ *       '500':
+ *         description: Внутренняя ошибка сервера.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                   example: 500
+ *                 message:
+ *                   type: string
+ *                   example: "Internal Server Error"
+ */
+
+/**
+ * @swagger
+ * /api/delivery/v1/decline:
+ *   post:
+ *     summary: Отмена заказа на доставку товара клиенту
+ *     tags: [deliveryController]
+ *     security:
+ *       - bearerAuth: []
+ *     description: Отменяет тикет заказа доставки
+ *     requestBody:
+ *       required: true
+ *       content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 orderId:
+ *                   type: integer
+ *                   description: Номер заказа клиента
+ *                   example: 123456
+ *     responses:
+ *       200:
+ *         description: Заказ успешно отменен
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   description: Состояние выполнения запроса
+ *                   example: true
+ *                 deliveryId:
+ *                   type: integer
+ *                   description: Номер тикета доставки
+ *                   example: 123456
+ *       '422':
+ *         description: Ошибка валидации.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                   example: 422
+ *                 message:
+ *                   type: string
+ *                   example: "Unprocessable Entity"
+ *       '500':
+ *         description: Внутренняя ошибка сервера.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                   example: 500
+ *                 message:
+ *                   type: string
+ *                   example: "Internal Server Error" 
  */
 /**
  * @swagger
@@ -169,11 +262,10 @@
  *                 status:
  *                   type: boolean
  *                   example: true
- *                 adresses:
+ *                 addresses:
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/AddressDto' 
- *    
  *       '422':
  *         description: Ошибка валидации. Пользователь не найден или адреса отсутствуют.
  *         content:
@@ -227,7 +319,7 @@
  *                     $ref: '#/components/schemas/AddressDto' 
  *    
  *       '422':
- *         description: Ошибка валидации. Пользователь не найден или адреса отсутствуют.
+ *         description: Ошибка валидации. 
  *         content:
  *           application/json:
  *             schema:
@@ -262,9 +354,20 @@
  *     tags: [deliveryController]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 addressId:
+ *                   type: integer
+ *                   description: Номер тикета заявки на доставку
+ *                   example: 123456
  *     responses:
  *       '200':
- *         description: Успешный запрос. Возвращает список адресов для доставки пользователю.
+ *         description: Адрес успешно удален из списка адресов пользователя.
  *         content:
  *           application/json:
  *             schema:
@@ -277,7 +380,7 @@
  *                   type: integer 
  *    
  *       '422':
- *         description: Ошибка валидации. Пользователь не найден или адреса отсутствуют.
+ *         description: Ошибка валидации.
  *         content:
  *           application/json:
  *             schema:
@@ -303,3 +406,4 @@
  *                   type: string
  *                   example: "Internal Server Error"
  */
+

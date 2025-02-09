@@ -4,10 +4,10 @@ const SQL        = require('common-delivery-service').SQL;
 const MESSAGES   = require('common-delivery-service').MESSAGES;
 const logger     = require('openfsm-logger-handler');
 
-
 require('dotenv').config();
 const ClientProducerAMQP  =  require('openfsm-client-producer-amqp'); // ходим в почту через шину
 const amqp = require('amqplib');
+const AddressDto = require('openfsm-address-dto');
 
 /* Коннектор для шины RabbitMQ */
 const {
@@ -234,7 +234,8 @@ exports.getAddresses = (userId = null) => {
           console.log(err); 
           return reject(err);
         }
-        resolve(result.rows);
+        let adresses = result.rows.map(row => new AddressDto(row).toJSON());
+        resolve(adresses);
     }
    );
  });
