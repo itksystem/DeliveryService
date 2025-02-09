@@ -10,9 +10,18 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3004', // Укажите ваш сервер
+        url: 'http://localhost:3004'        
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
   apis: ['./swagger/*.js','./routes/*.js'], // Укажите путь к вашим файлам с роутами
 };
