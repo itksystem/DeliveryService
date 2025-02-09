@@ -8,7 +8,7 @@ const options = {
       version: '1.0.0',
       description: 'API documentation for delivery service',
     },
-    servers: [
+     servers: [
       {
         url: 'http://localhost:3004'        
       },
