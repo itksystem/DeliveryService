@@ -57,6 +57,21 @@ exports.addAddress = async (req, res) => {
     }
 };
 
+exports.setAddress = async (req, res) => {      
+    try {
+        let userId = await authMiddleware.getUserId(req, res);
+        if(!userId) throw(422)
+        const {addressId} = req.body;
+        if(!addressId) throw(422);
+        const result = await deliveryHelper.setAddress(addressId,userId);        
+        if(!result) throw(422)
+        sendResponse(res, 200, { status: true, addressId});
+    } catch (error) {
+         console.error("Error create:", error);
+         sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });
+    }
+};
+
 exports.deleteAddress = async (req, res) => {      
     try {
         let userId = await authMiddleware.getUserId(req, res);

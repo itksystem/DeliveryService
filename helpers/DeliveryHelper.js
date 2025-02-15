@@ -242,6 +242,25 @@ exports.getAddresses = (userId = null) => {
 };
 
 
+
+exports.setAddress = (addressId = null, userId = null) => {
+  if(!userId || !addressId) return reject('userId or addressId not exist');
+  return new Promise((resolve, reject) => {  
+    db.query(SQL.USER.SET_ADDRESSES, [      
+      userId
+    ],
+      (err, result) => {
+        if (err) {
+          console.log(err); 
+          return reject(err);
+        }
+        let adresses = result.rows.map(row => new AddressDto(row).toJSON());
+        resolve(adresses);
+    }
+   );
+ });
+};
+
 async function startConsumer(queue, handler) {
   try {
       const connection = await amqp.connect(`amqp://${login}:${pwd}@${host}:${port}`);

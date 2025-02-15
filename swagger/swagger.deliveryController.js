@@ -406,4 +406,64 @@
  *                   type: string
  *                   example: "Internal Server Error"
  */
-
+/**
+ * @swagger
+ * /api/delivery/v1/address:
+ *   patch:
+ *     summary: Установить выбранный адрес пользователя по умолчанию
+ *     description: Установить выбранный адрес пользователя по умолчанию. Требуется авторизация.
+ *     tags: [deliveryController]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 addressId:
+ *                   type: integer
+ *                   description: Номер тикета заявки на доставку
+ *                   example: 123456
+ *     responses:
+ *       '200':
+ *         description: Адрес успешно удален из списка адресов пользователя.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 addressId:
+ *                   type: integer 
+ *    
+ *       '422':
+ *         description: Ошибка валидации.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                   example: 422
+ *                 message:
+ *                   type: string
+ *                   example: "Unprocessable Entity"
+ *       '500':
+ *         description: Внутренняя ошибка сервера.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 code:
+ *                   type: integer
+ *                   example: 500
+ *                 message:
+ *                   type: string
+ *                   example: "Internal Server Error"
+ */
