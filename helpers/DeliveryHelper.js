@@ -4,7 +4,7 @@ const SQL        = require('common-delivery-service').SQL;
 const MESSAGES   = require('common-delivery-service').MESSAGES;
 const logger     = require('openfsm-logger-handler');
 
-require('dotenv').config();
+require('dotenv').config({ path: '.env-delivery-service' });
 const ClientProducerAMQP  =  require('openfsm-client-producer-amqp'); // ходим в почту через шину
 const amqp = require('amqplib');
 const AddressDto = require('openfsm-address-dto');
@@ -247,7 +247,7 @@ exports.setAddress = (addressId = null, userId = null) => {
   if(!userId || !addressId) return reject('userId or addressId not exist');
   return new Promise((resolve, reject) => {  
     db.query(SQL.USER.SET_ADDRESSES, [      
-      userId
+      addressId, userId
     ],
       (err, result) => {
         if (err) {

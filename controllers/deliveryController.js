@@ -8,7 +8,7 @@ const { v4: uuidv4 } = require('uuid');
 const AuthServiceClientHandler = require("openfsm-auth-service-client-handler");
 const authClient = new AuthServiceClientHandler();              // интерфейс для  связи с MC AuthService
 const AddressDto = require('openfsm-address-dto');
-require('dotenv').config();
+require('dotenv').config({ path: '.env-delivery-service' });
 
 const sendResponse = (res, statusCode, data) => {
     res.status(statusCode).json(data);
