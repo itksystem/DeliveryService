@@ -45,7 +45,7 @@ exports.decline = async (req, res) => {
 exports.addAddress = async (req, res) => {      
     try {
         let userId = await authMiddleware.getUserId(req, res);
-        if(!userId) throw(422)
+        if(!userId) throw(401)
         const address = new AddressDto(req.body);
         if(!address) throw(422);
         const addressId = await deliveryHelper.addAddress(address,userId);        
@@ -60,7 +60,7 @@ exports.addAddress = async (req, res) => {
 exports.setAddress = async (req, res) => {      
     try {
         let userId = await authMiddleware.getUserId(req, res);
-        if(!userId) throw(422)
+        if(!userId) throw(401)
         const {addressId} = req.body;
         if(!addressId) throw(422);
         const result = await deliveryHelper.setAddress(addressId,userId);        
@@ -75,7 +75,7 @@ exports.setAddress = async (req, res) => {
 exports.deleteAddress = async (req, res) => {      
     try {
         let userId = await authMiddleware.getUserId(req, res);
-        if(!userId) throw(422)
+        if(!userId) throw(401)
         const {addressId} = req.body;
         if (!addressId) throw(400);     
         const result = await deliveryHelper.deleteAddress(addressId, userId);        
@@ -91,10 +91,24 @@ exports.deleteAddress = async (req, res) => {
 exports.getAddresses = async (req, res) => {      
     try {
         let userId = await authMiddleware.getUserId(req, res);
-        if(!userId) throw(422)           
+        if(!userId) throw(401)           
         const addresses = await deliveryHelper.getAddresses(userId);        
         if(!addresses) throw(422)
         sendResponse(res, 200, { status: true, addresses});
+    } catch (error) {
+         console.error("Error create:", error);
+         sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });
+    }
+};
+
+
+exports.getDeliveryTypes = async (req, res) => {      
+    try {
+        let userId = await authMiddleware.getUserId(req, res);
+        if(!userId) throw(401)           
+        const types = await deliveryHelper.getDeliveryTypes();        
+        if(!types) throw(422)
+        sendResponse(res, 200, { status: true, types});
     } catch (error) {
          console.error("Error create:", error);
          sendResponse(res, (Number(error) || 500), { code: (Number(error) || 500), message:  new CommonFunctionHelper().getDescriptionByCode((Number(error) || 500)) });

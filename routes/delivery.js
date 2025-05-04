@@ -11,7 +11,9 @@ router.post('/v1/decline', authMiddleware.authenticateToken, delivery.decline); 
 router.post('/v1/address', authMiddleware.authenticateToken, delivery.addAddress);  // Добавить адрес пользователя
 router.patch('/v1/address', authMiddleware.authenticateToken, delivery.setAddress);  // Установить  адрес пользователя по умолчанию
 router.delete('/v1/address', authMiddleware.authenticateToken, delivery.deleteAddress);  // Удалить адрес пользователя
+
 router.get('/v1/addresses', authMiddleware.authenticateToken, delivery.getAddresses);  // Получить список адресов пользователя
+router.get('/v1/delivery-types', authMiddleware.authenticateToken, delivery.getDeliveryTypes);  // Получить список типов доставки
 
 
 module.exports = router;

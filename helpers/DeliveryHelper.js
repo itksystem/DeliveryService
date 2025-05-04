@@ -261,6 +261,25 @@ exports.setAddress = (addressId = null, userId = null) => {
  });
 };
 
+exports.getDeliveryTypes = () => {  
+  return new Promise((resolve, reject) => {  
+    db.query(SQL.USER.GET_DELIVERY_TYPES, [],
+      (err, result) => {
+        if (err) {
+          console.log(err); 
+          return reject(err);
+        }
+        resolve(result.rows);
+    }
+   );
+ });
+};
+
+
+
+
+/* Работа с шиной */
+
 async function startConsumer(queue, handler) {
   try {
       const connection = await amqp.connect(`amqp://${login}:${pwd}@${host}:${port}`);
