@@ -177,7 +177,7 @@ exports.decline = (orderId) => {
 
 
 // Добавить адрес
-exports.addAddress = (address, userId = null) => {
+exports.addAddress = (address, userId = null, query=null) => {
   if(!userId) return reject('userId not exist');
   return new Promise((resolve, reject) => {  
     db.query(SQL.USER.ADD_ADDRESS, [
@@ -191,7 +191,8 @@ exports.addAddress = (address, userId = null) => {
       address.getPostalCode() || null,
       address.getRegion() || null,
       address.getStreet() || null,
-      userId
+      userId,
+      query
     ],
       (err, result) => {
         if (err) {
@@ -223,21 +224,22 @@ exports.deleteAddress = (addressId, userId = null) => {
 };
 
 
-exports.getAddresses = (userId = null) => {
+exports.getAddresses = (userId = null, query = null) => {
   if(!userId) return reject('userId not exist');
   return new Promise((resolve, reject) => {  
-    db.query(SQL.USER.GET_ADDRESSES, [      
-      userId
-    ],
-      (err, result) => {
-        if (err) {
-          console.log(err); 
-          return reject(err);
-        }
-        let adresses = result.rows.map(row => new AddressDto(row).toJSON());
-        resolve(adresses);
-    }
-   );
+     let arr = query ? [userId, query] : [userId] ;
+      db.query(
+        (query ? SQL.USER.GET_ADDRESSES_WIHTH_QUERY  : SQL.USER.GET_ADDRESSES),  
+        arr,
+        (err, result) => {
+          if (err) {
+            console.log(err); 
+            return reject(err);
+          }
+          let adresses = result.rows.map(row => new AddressDto(row).toJSON());
+          resolve(adresses);
+      }
+     );
  });
 };
 

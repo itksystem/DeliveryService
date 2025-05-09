@@ -48,8 +48,10 @@ exports.addAddress = async (req, res) => {
         if(!userId) throw(401)
         const address = new AddressDto(req.body);
         if(!address) throw(422);
-        const addressId = await deliveryHelper.addAddress(address,userId);        
+        let deliveryType = !req.body.deliveryType ? null : req.body.deliveryType;
+        const addressId = await deliveryHelper.addAddress(address,userId,deliveryType);
         if(!addressId) throw(422)
+        
         sendResponse(res, 200, { status: true, addressId});
     } catch (error) {
          console.error("Error create:", error);
@@ -60,7 +62,7 @@ exports.addAddress = async (req, res) => {
 exports.setAddress = async (req, res) => {      
     try {
         let userId = await authMiddleware.getUserId(req, res);
-        if(!userId) throw(401)
+        if(!userId) throw(401)            
         const {addressId} = req.body;
         if(!addressId) throw(422);
         const result = await deliveryHelper.setAddress(addressId,userId);        
@@ -92,7 +94,9 @@ exports.getAddresses = async (req, res) => {
     try {
         let userId = await authMiddleware.getUserId(req, res);
         if(!userId) throw(401)           
-        const addresses = await deliveryHelper.getAddresses(userId);        
+        let query = !req?.query?.query ? null : req?.query?.query;
+
+        const addresses = await deliveryHelper.getAddresses(userId, query);        
         if(!addresses) throw(422)
         sendResponse(res, 200, { status: true, addresses});
     } catch (error) {
