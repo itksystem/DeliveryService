@@ -191,6 +191,8 @@ exports.addAddress = (address, userId = null, query=null) => {
       address.getPostalCode() || null,
       address.getRegion() || null,
       address.getStreet() || null,
+      address.getLatitude() || null,
+      address.getLongitude() || null,
       userId,
       query
     ],
