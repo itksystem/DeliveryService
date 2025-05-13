@@ -11,12 +11,14 @@ const AddressDto = require('openfsm-address-dto');
 
 /* Коннектор для шины RabbitMQ */
 const {
-  RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD,  RABBITMQ_ORDER_STATUS_QUEUE,  RABBITMQ_DELIVERY_RESERVATION_QUEUE, RABBITMQ_DELIVERY_DECLINE_QUEUE  } = process.env;
+  RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD,  RABBITMQ_ORDER_STATUS_QUEUE,
+  RABBITMQ_DELIVERY_RESERVATION_QUEUE, RABBIT_DELIVERY_ORDER_ACTION_QUEUE, RABBITMQ_DELIVERY_DECLINE_QUEUE  } = process.env;
 const login = RABBITMQ_USER || 'guest';
 const pwd = RABBITMQ_PASSWORD || 'guest';
 const ORDER_STATUS_QUEUE       = RABBITMQ_ORDER_STATUS_QUEUE || 'ORDER_STATUS';
 const DELIVERY_RESERVATION_QUEUE  = RABBITMQ_DELIVERY_RESERVATION_QUEUE || 'DELIVERY_RESERVATION';
 const DELIVERY_DECLINE_QUEUE   = RABBITMQ_DELIVERY_DECLINE_QUEUE || 'DELIVERY_DECLINE';
+const DELIVERY_ORDER_ACTION_QUEUE = RABBIT_DELIVERY_ORDER_ACTION_QUEUE || 'DELIVERY_ORDER_ACTION_QUEUE'; // очередь для первичной регистрации типа доставки по заказу
 const host = RABBITMQ_HOST || 'rabbitmq-service';
 const port = RABBITMQ_PORT || '5672';
 
@@ -122,7 +124,7 @@ exports.deliveryAdd = (orderId, deliveryDate, courierId) => {
       if (!orderId || !deliveryDate || !courierId) {
           return reject(new Error("Invalid input parameters"));
       }      
-      db.query(SQL.DELIVERY.DELIVERY_ORDER_ADD,
+      db.query(SQL.DELIVERY.DELIVERY_NEW_ORDER_ADD,
           [orderId, deliveryDate, courierId],
           (err, results) => {
               if (err) {
@@ -307,25 +309,78 @@ async function startConsumer(queue, handler) {
   }
 }
 
+
+startConsumer(DELIVERY_RESERVATION_QUEUE, async (msg) => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Месяцы начинаются с 0
+  const day = String(today.getDate()).padStart(2, '0');
+  const formattedDate = `${year}-${month}-${day}`;
+  let result = 
+     await  exports.create(msg.order.orderId, formattedDate, msg.order.deliveryId)       
+  if(!result) { // если курьер не назначен - ставим статус Поиск 
+   await searchCourierMessageSend(msg);
+  }
+});
+
+
+// Первичная регистрация типа доставки по заказу
+startConsumer(DELIVERY_ORDER_ACTION_QUEUE, async (msg) => {
+  try {
+    if (!msg?.orderId) {
+      console.log('Message missing orderId, skipping');
+      return;
+    }
+
+    // Get delivery types from database
+    const deliveryTypes = await new Promise((resolve, reject) => {        
+      db.query(SQL.USER.GET_DELIVERY_TYPES, [], (err, result) => {
+        if (err) return reject(err);
+        resolve(result.rows);
+      });
+    });
+
+    if (!deliveryTypes || deliveryTypes.length === 0) {
+      throw new Error('No delivery types found in database');
+    }
+
+    // Find matching delivery type
+    const deliveryType = deliveryTypes.find(type => msg.deliveryType === type.code);
+    if (!deliveryType) {
+      throw new Error(`Delivery type ${msg.deliveryType} not found`);
+    }
+
+    // Prepare delivery date (YYYY-MM-DD format)
+    const today = new Date();
+    const deliveryDate = today.toISOString().split('T')[0]; // More reliable date formatting
+
+    // Insert new delivery order
+    const result = await new Promise((resolve, reject) => {  
+      db.query(
+        SQL.DELIVERY.DELIVERY_NEW_ORDER_ADD, 
+        [msg.orderId, deliveryDate, deliveryType.id, msg],
+        (err, result) => {
+          if (err) return reject(err);
+          resolve(result.rows);
+        }
+      );
+    });
+
+    console.log('Successfully processed delivery order:', msg.orderId);
+  } catch (error) {
+    console.error('Error processing delivery order:', error);
+    // Consider adding retry logic or dead-letter queue handling here
+    throw error; // Re-throw if you want the consumer to handle retries
+  }
+});
+
+
 /*
 {
 "orderId":41, 
 "deliveryId" : "COURIER_SERVICE"
 }
 */
-
-startConsumer(DELIVERY_RESERVATION_QUEUE, async (msg) => {
-   const today = new Date();
-   const year = today.getFullYear();
-   const month = String(today.getMonth() + 1).padStart(2, '0'); // Месяцы начинаются с 0
-   const day = String(today.getDate()).padStart(2, '0');
-   const formattedDate = `${year}-${month}-${day}`;
-   let result = 
-      await  exports.create(msg.order.orderId, formattedDate, msg.order.deliveryId)       
-   if(!result) { // если курьер не назначен - ставим статус Поиск 
-    await searchCourierMessageSend(msg);
-   }
-});
 
 startConsumer(DELIVERY_DECLINE_QUEUE, async (msg) => {
   await exports.decline(msg.order.orderId),
